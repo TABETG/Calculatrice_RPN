@@ -28,14 +28,15 @@ jobs:
 
       - name: Install deps
         working-directory: frontend
-        run: npm ci
+        run: npm ci || npm i --no-audit --no-fund
 
-      - name: Build
+      - name: Build (Vite)
         working-directory: frontend
         env:
-          # ⚠️ mets ICI ton backend public (SANS /api/v1)
-          VITE_API_URL: "https://<BACKEND_URL>"
+          # ⚠️ Lue depuis Settings > Actions > Variables
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
         run: |
+          echo "Building with VITE_API_URL=${VITE_API_URL}"
           npm run build
           cp dist/index.html dist/404.html
 

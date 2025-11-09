@@ -1,0 +1,11 @@
+# render.yaml
+services:
+  - type: web
+    name: rpn-backend
+    env: python
+    region: frankfurt
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -k uvicorn.workers.UvicornWorker app.main:app
+    autoDeploy: true

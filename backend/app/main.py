@@ -1,4 +1,4 @@
-# main.py
+# backend/app/main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import routes
@@ -14,21 +14,27 @@ app = FastAPI(
 )
 
 ALLOWED_ORIGINS = [
-    "https://tabetg.github.io",  # GitHub Pages (ne pas mettre le chemin /Calculatrice_RPN)
-    "http://localhost:5173",     # dev Vite
+    "https://tabetg.github.io",  # GitHub Pages (origin sans /Calculatrice_RPN)
+    "http://localhost:5173",     # Dev Vite
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=False,           # True seulement si tu utilises des cookies
-    allow_methods=["GET","POST","PUT","PATCH","DELETE","OPTIONS"],
+    allow_credentials=False,  # True seulement si tu utilises des cookies
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
     max_age=600,
 )
 
+# Toutes tes routes d'API sous /api/v1
 app.include_router(routes.router, prefix=API_PREFIX)
 
+# Endpoints de health simples pour monitoring / test
 @app.get("/", tags=["Health"])
 def root():
     return {"name": APP_NAME, "version": APP_VERSION, "status": "running", "docs": "/docs"}
+
+@app.get("/health", tags=["Health"])
+def health():
+    return {"status": "ok"}

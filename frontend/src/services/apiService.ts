@@ -1,10 +1,11 @@
 /**
  * API Service - Communication avec le backend FastAPI
- * En prod (github.io), VITE_API_URL doit être défini (ex: https://rpn-api.onrender.com)
+ * En prod (github.io), VITE_API_URL doit être défini (ex: https://rpn-backend-xxxxx.onrender.com)
  */
-const RAW_BASE = (import.meta.env.VITE_API_URL as string | undefined) || 'http://localhost:8000';
+
+const RAW_BASE = (import.meta.env.VITE_API_URL as string | undefined) || "http://localhost:8000";
 // retire le slash final si présent
-const API_BASE_URL = RAW_BASE.replace(/\/+$/, '');
+const API_BASE_URL = RAW_BASE.replace(/\/+$/, "");
 
 export interface StackResponse {
   stack: number[];
@@ -21,69 +22,78 @@ interface ErrorResponse {
 
 class ApiService {
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    // sécurité: VITE_API_URL obligatoire en prod
-    if (location.hostname.endsWith('github.io') && !import.meta.env.VITE_API_URL) {
-      throw new Error('Configuration manquante: VITE_API_URL non défini en production');
+    // En prod GitHub Pages: VITE_API_URL DOIT exister
+    if (location.hostname.endsWith("github.io") && !import.meta.env.VITE_API_URL) {
+      throw new Error("Configuration manquante: VITE_API_URL non défini en production");
+    }
+    // Page HTTPS -> backend DOIT être en HTTPS (sinon mixed content bloqué par le navigateur)
+    if (location.protocol === "https:" && API_BASE_URL.startsWith("http://")) {
+      throw new Error("Backend non-HTTPS : la page HTTPS bloque les appels HTTP (mixed content)");
     }
 
-    const url = `${API_BASE_URL}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+    const url = `${API_BASE_URL}${endpoint.startsWith("/") ? "" : "/"}${endpoint}`;
 
-    // timeout pour éviter le spinner infini
+    // Timeout un peu plus long pour cold start (Render, Railway…)
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 10_000);
+    const timer = setTimeout(() => controller.abort(), 20_000);
 
-    const res = await fetch(url, {
-      mode: 'cors',
-      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-      signal: controller.signal,
-      ...options,
-    }).catch((e) => {
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        mode: "cors",
+        headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+        signal: controller.signal,
+        ...options,
+      });
+    } catch (e: any) {
       clearTimeout(timer);
-      if (e.name === 'AbortError') throw new Error('API timeout');
-      throw new Error('Connexion API échouée');
-    });
+      if (e?.name === "AbortError") throw new Error("API timeout");
+      // TypeError: Failed to fetch / CORS / DNS -> message clair
+      throw new Error("Connexion API échouée");
+    }
 
     clearTimeout(timer);
 
     if (!res.ok) {
-      // tente de lire un JSON {detail:"..."} sinon fallback
+      // Tente de lire { detail: "..."} de FastAPI
       try {
         const err: ErrorResponse = await res.json();
-        throw new Error(err?.detail || res.statusText || 'API request failed');
+        throw new Error(err?.detail || `${res.status} ${res.statusText}` || "API request failed");
       } catch {
-        throw new Error(res.statusText || 'API request failed');
+        const txt = await res.text().catch(() => "");
+        throw new Error(txt || `${res.status} ${res.statusText}` || "API request failed");
       }
     }
 
-    // gère 204 / réponses vides
+    // Gère 204 / réponses vides
     const text = await res.text();
     return (text ? (JSON.parse(text) as T) : ({} as T));
   }
 
   // ----- Stack -----
   getStack(): Promise<StackResponse> {
-    return this.request<StackResponse>('/api/v1/stack');
+    return this.request<StackResponse>("/api/v1/stack");
   }
 
   pushValue(value: number): Promise<StackResponse> {
-    return this.request<StackResponse>('/api/v1/stack', {
-      method: 'POST',
+    return this.request<StackResponse>("/api/v1/stack", {
+      method: "POST",
       body: JSON.stringify({ value }),
     });
   }
 
   clearStack(): Promise<MessageResponse> {
-    return this.request<MessageResponse>('/api/v1/stack', { method: 'DELETE' });
+    return this.request<MessageResponse>("/api/v1/stack", { method: "DELETE" });
   }
 
   // ----- Opérations de base -----
-  op(operation: 'add' | 'sub' | 'mul' | 'div'): Promise<StackResponse> {
-    return this.request<StackResponse>(`/api/v1/op/${operation}`, { method: 'POST' });
+  op(operation: "add" | "sub" | "mul" | "div"): Promise<StackResponse> {
+    return this.request<StackResponse>(`/api/v1/op/${operation}`, { method: "POST" });
   }
 
   // ----- Opérations avancées -----
-  adv(operation: 'sqrt' | 'power' | 'pow' | 'swap' | 'dup' | 'drop'): Promise<StackResponse> {
-    return this.request<StackResponse>(`/api/v1/op/${operation}`, { method: 'POST' });
+  adv(operation: "sqrt" | "power" | "pow" | "swap" | "dup" | "drop"): Promise<StackResponse> {
+    return this.request<StackResponse>(`/api/v1/op/${operation}`, { method: "POST" });
   }
 }
 
