@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ master ]   # ou master si c'est ta branche
+    branches: [ master ]
   workflow_dispatch:
 
 permissions:
@@ -27,11 +27,7 @@ jobs:
         run: npm ci
       - name: Build (Vite)
         working-directory: frontend
-        env:
-          # ⚠️ DOIT être défini dans le dépôt (Settings > Actions > Variables)
-          VITE_API_URL: ${{ vars.VITE_API_URL }}
         run: |
-          echo "Build with VITE_API_URL=$VITE_API_URL"
           npm run build
           cp dist/index.html dist/404.html
       - name: Upload artifact
@@ -42,7 +38,10 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    environment: { name: github-pages }
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - id: deployment
+      - name: Deploy
+        id: deployment
         uses: actions/deploy-pages@v4
