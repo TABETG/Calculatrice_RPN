@@ -1,3 +1,4 @@
+# .github/workflows/pages.yml
 name: Deploy Vite to GitHub Pages
 
 on:
@@ -24,14 +25,20 @@ jobs:
           node-version: 20
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
+
       - name: Install deps
         working-directory: frontend
         run: npm ci
+
       - name: Build
         working-directory: frontend
+        env:
+          # ⚠️ mets ICI ton backend public (SANS /api/v1)
+          VITE_API_URL: "https://<BACKEND_URL>"
         run: |
           npm run build
           cp dist/index.html dist/404.html
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
